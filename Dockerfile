@@ -24,8 +24,8 @@ COPY train_model.py .
 RUN mkdir -p models
 
 # Train the model during build (optional - or you can mount pre-trained models)
-# Uncomment the next line to train during build (will increase build time significantly)
-# RUN python train_model.py
+# This will increase build time significantly but ensures model is available
+RUN python train_model.py
 
 # Expose port
 EXPOSE 8000
