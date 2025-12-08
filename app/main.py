@@ -82,7 +82,7 @@ async def predict(prediction_request: PredictionRequest):
         end_date = datetime.now()
         start_date = end_date - timedelta(days=365)  # Get 1 year of data
 
-        df = yf.download(ticker, start=start_date, end=end_date, progress=False)
+        df = yf.download(ticker, start=start_date, end=end_date, progress=False, auto_adjust=False)
 
         if df.empty:
             raise HTTPException(status_code=404, detail=f"Stock ticker '{ticker}' not found")
@@ -92,7 +92,8 @@ async def predict(prediction_request: PredictionRequest):
             df.columns = df.columns.droplevel(1)
 
         # Get close prices
-        close_prices = df[['Close']].values
+        close_prices_df = df[['Close']].copy()
+        close_prices = close_prices_df.values
 
         if len(close_prices) < metadata['sequence_length']:
             raise HTTPException(
@@ -100,8 +101,8 @@ async def predict(prediction_request: PredictionRequest):
                 detail=f"Insufficient data. Need at least {metadata['sequence_length']} days of historical data."
             )
 
-        # Scale the data
-        scaled_data = scaler.transform(close_prices)
+        # Scale the data (using DataFrame to match training)
+        scaled_data = scaler.transform(close_prices_df)
 
         # Get the last sequence
         last_sequence = scaled_data[-metadata['sequence_length']:].flatten()
