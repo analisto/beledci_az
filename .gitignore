@@ -1,22 +1,18 @@
 .claude
 venv
-
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-
 # Virtual Environment
 env/
 ENV/
 .venv
-
 # Jupyter Notebook
 .ipynb_checkpoints
 *.ipynb
-
 # IDEs
 .vscode/
 .idea/
@@ -24,14 +20,11 @@ ENV/
 *.swo
 *~
 .DS_Store
-
 # Environment variables
 .env
 .env.local
-
 # Logs
 *.log
-
 # Distribution / packaging
 build/
 dist/
