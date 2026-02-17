@@ -436,38 +436,40 @@ def chart_10_crisis_matrix():
     ax.axvline(VOL_THRESHOLD,    color="#95A5A6", linestyle=":",
                linewidth=1.3, zorder=1)
 
-    # ── Quadrant labels — anchored to quadrant corners via axes fraction ──
-    # Top-left quadrant: text near top-left corner
-    ax.text(0.01, 0.99,
-            "CONTAINED RISK\nLow Volume · Better Rating (>1.5)",
-            color="#1A5276", fontweight="bold", fontsize=9,
-            va="top", transform=ax.transAxes, alpha=0.80,
-            bbox=dict(boxstyle="round,pad=0.25", facecolor="#EBF5FB",
-                      edgecolor="#AED6F1", linewidth=0.8, alpha=0.85))
+    # ── Quadrant labels ───────────────────────────────────────────────────
+    # xlim = [-260, xmax].  Convert data coords to axes fractions correctly:
+    #   axes_frac = (data_x - xlim_lo) / (xlim_hi - xlim_lo)
+    xlim_lo = -260
+    xlim_span = xmax - xlim_lo
+    x0_frac  = (0              - xlim_lo) / xlim_span   # data x=0
+    xv_frac  = (VOL_THRESHOLD  - xlim_lo) / xlim_span   # data x=VOL_THRESHOLD
+    tl_x = x0_frac + 0.01     # just inside left data quadrant (0 → 200)
+    tr_x = xv_frac + 0.015    # just inside right data quadrant (200 → xmax)
 
-    # Top-right quadrant: text near top-right, left-aligned from threshold
-    ax.text(x_frac + 0.01, 0.99,
-            "ELEVATED RISK\nHigh Volume · Better Rating (>1.5)",
-            color="#1E8449", fontweight="bold", fontsize=9,
-            va="top", transform=ax.transAxes, alpha=0.80,
-            bbox=dict(boxstyle="round,pad=0.25", facecolor="#EAFAF1",
-                      edgecolor="#A9DFBF", linewidth=0.8, alpha=0.85))
+    q_bbox_tl = dict(boxstyle="round,pad=0.3", facecolor="#EBF5FB",
+                     edgecolor="#AED6F1", linewidth=0.9, alpha=0.90)
+    q_bbox_tr = dict(boxstyle="round,pad=0.3", facecolor="#EAFAF1",
+                     edgecolor="#A9DFBF", linewidth=0.9, alpha=0.90)
+    q_bbox_bl = dict(boxstyle="round,pad=0.3", facecolor="#FEF9E7",
+                     edgecolor="#F9E79F", linewidth=0.9, alpha=0.90)
+    q_bbox_br = dict(boxstyle="round,pad=0.3", facecolor="#FDEDEC",
+                     edgecolor="#F1948A", linewidth=1.0, alpha=0.92)
 
-    # Bottom-left quadrant: text near bottom-left corner
-    ax.text(0.01, 0.02,
-            "SERIOUS RISK\nLow Volume · Critical Rating (<1.5)",
-            color="#784212", fontweight="bold", fontsize=9,
-            va="bottom", transform=ax.transAxes, alpha=0.80,
-            bbox=dict(boxstyle="round,pad=0.25", facecolor="#FEF9E7",
-                      edgecolor="#F9E79F", linewidth=0.8, alpha=0.85))
+    ax.text(tl_x, 0.99, "CONTAINED RISK\nLow Volume · Rating >1.5",
+            color="#1A5276", fontweight="bold", fontsize=9, va="top",
+            transform=ax.transAxes, alpha=0.85, bbox=q_bbox_tl)
 
-    # Bottom-right quadrant: text near bottom-right corner
-    ax.text(x_frac + 0.01, 0.02,
-            "⚠  CRITICAL ZONE\nHigh Volume · Critical Rating (<1.5)",
-            color=BRAND_RED, fontweight="bold", fontsize=9.5,
-            va="bottom", transform=ax.transAxes, alpha=0.90,
-            bbox=dict(boxstyle="round,pad=0.25", facecolor="#FDEDEC",
-                      edgecolor="#F1948A", linewidth=1.0, alpha=0.88))
+    ax.text(tr_x, 0.99, "ELEVATED RISK\nHigh Volume · Rating >1.5",
+            color="#1E8449", fontweight="bold", fontsize=9, va="top",
+            transform=ax.transAxes, alpha=0.85, bbox=q_bbox_tr)
+
+    ax.text(tl_x, 0.02, "SERIOUS RISK\nLow Volume · Rating <1.5",
+            color="#784212", fontweight="bold", fontsize=9, va="bottom",
+            transform=ax.transAxes, alpha=0.85, bbox=q_bbox_bl)
+
+    ax.text(tr_x, 0.02, "⚠  CRITICAL ZONE\nHigh Volume · Rating <1.5",
+            color=BRAND_RED, fontweight="bold", fontsize=9.5, va="bottom",
+            transform=ax.transAxes, alpha=0.92, bbox=q_bbox_br)
 
     # ── Scatter ───────────────────────────────────────────────────────────
     norm = plt.Normalize(vmin=1.0, vmax=3.5)
