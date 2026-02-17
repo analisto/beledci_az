@@ -395,49 +395,183 @@ def chart_10_crisis_matrix():
             count=("slug", "count"),
         )
         .reset_index()
+        .sort_values("total_reviews", ascending=False)
+        .reset_index(drop=True)
     )
 
-    fig, ax = plt.subplots(figsize=(12, 7))
+    VOL_THRESHOLD    = 200
+    RATING_THRESHOLD = 1.5   # meaningful split: all data lives in 1.0–2.1
 
-    scatter = ax.scatter(
+    # Categories with very few reviews (x < 30) — put in left column
+    LEFT_COL = ["Otellər", "Tibb mərkəzləri", "Gözəllik və baxım",
+                "Əyləncə", "Geyim mağazaları", "Tədris mərkəzləri"]
+    left_order = (
+        cat_agg[cat_agg["category_name"].isin(LEFT_COL)]
+        .sort_values("avg_rating", ascending=False)["category_name"]
+        .tolist()
+    )
+
+    fig, ax = plt.subplots(figsize=(18, 9))
+    fig.patch.set_facecolor("white")
+
+    xmax  = cat_agg["total_reviews"].max() * 1.22
+    y_lo, y_hi = 0.85, 2.45   # tight zoom on actual data range
+
+    y_frac = (RATING_THRESHOLD - y_lo) / (y_hi - y_lo)
+    x_frac = VOL_THRESHOLD / xmax
+
+    # ── Quadrant backgrounds ──────────────────────────────────────────────
+    ax.axvspan(0,            VOL_THRESHOLD, ymin=y_frac, ymax=1,
+               color="#EBF5FB", alpha=0.50, zorder=0)   # top-left   blue
+    ax.axvspan(VOL_THRESHOLD, xmax,         ymin=y_frac, ymax=1,
+               color="#EAFAF1", alpha=0.50, zorder=0)   # top-right  green
+    ax.axvspan(0,            VOL_THRESHOLD, ymin=0,      ymax=y_frac,
+               color="#FEF9E7", alpha=0.55, zorder=0)   # bot-left   yellow
+    ax.axvspan(VOL_THRESHOLD, xmax,         ymin=0,      ymax=y_frac,
+               color="#FDEDEC", alpha=0.65, zorder=0)   # bot-right  red
+
+    # ── Dividers ──────────────────────────────────────────────────────────
+    ax.axhline(RATING_THRESHOLD, color="#95A5A6", linestyle="--",
+               linewidth=1.3, zorder=1)
+    ax.axvline(VOL_THRESHOLD,    color="#95A5A6", linestyle=":",
+               linewidth=1.3, zorder=1)
+
+    # ── Quadrant labels — anchored to quadrant corners via axes fraction ──
+    # Top-left quadrant: text near top-left corner
+    ax.text(0.01, 0.99,
+            "CONTAINED RISK\nLow Volume · Better Rating (>1.5)",
+            color="#1A5276", fontweight="bold", fontsize=9,
+            va="top", transform=ax.transAxes, alpha=0.80,
+            bbox=dict(boxstyle="round,pad=0.25", facecolor="#EBF5FB",
+                      edgecolor="#AED6F1", linewidth=0.8, alpha=0.85))
+
+    # Top-right quadrant: text near top-right, left-aligned from threshold
+    ax.text(x_frac + 0.01, 0.99,
+            "ELEVATED RISK\nHigh Volume · Better Rating (>1.5)",
+            color="#1E8449", fontweight="bold", fontsize=9,
+            va="top", transform=ax.transAxes, alpha=0.80,
+            bbox=dict(boxstyle="round,pad=0.25", facecolor="#EAFAF1",
+                      edgecolor="#A9DFBF", linewidth=0.8, alpha=0.85))
+
+    # Bottom-left quadrant: text near bottom-left corner
+    ax.text(0.01, 0.02,
+            "SERIOUS RISK\nLow Volume · Critical Rating (<1.5)",
+            color="#784212", fontweight="bold", fontsize=9,
+            va="bottom", transform=ax.transAxes, alpha=0.80,
+            bbox=dict(boxstyle="round,pad=0.25", facecolor="#FEF9E7",
+                      edgecolor="#F9E79F", linewidth=0.8, alpha=0.85))
+
+    # Bottom-right quadrant: text near bottom-right corner
+    ax.text(x_frac + 0.01, 0.02,
+            "⚠  CRITICAL ZONE\nHigh Volume · Critical Rating (<1.5)",
+            color=BRAND_RED, fontweight="bold", fontsize=9.5,
+            va="bottom", transform=ax.transAxes, alpha=0.90,
+            bbox=dict(boxstyle="round,pad=0.25", facecolor="#FDEDEC",
+                      edgecolor="#F1948A", linewidth=1.0, alpha=0.88))
+
+    # ── Scatter ───────────────────────────────────────────────────────────
+    norm = plt.Normalize(vmin=1.0, vmax=3.5)
+    cmap = plt.cm.RdYlGn
+    dot_colors = [cmap(norm(v)) for v in cat_agg["avg_rating"]]
+
+    ax.scatter(
         cat_agg["total_reviews"],
         cat_agg["avg_rating"],
-        s=cat_agg["count"] * 28,
-        c=cat_agg["avg_rating"],
-        cmap="RdYlGn",
-        vmin=1, vmax=5,
-        alpha=0.85,
-        edgecolors="white",
-        linewidth=1.5,
-        zorder=3,
+        s=210, c=dot_colors,
+        edgecolors="white", linewidth=2.0,
+        zorder=4,
     )
 
+    # ── Labels: right-side cluster (not in LEFT_COL) ──────────────────────
+    # Manually tuned offsets (dx pts, dy pts) for each non-left-col category
+    RIGHT_OFFSETS = {
+        "İnternet provayderlər": (  0,  22),
+        "Taksi":                 (  0, -26),
+        "Supermarketlər":        (  0,  22),
+        "Xidmətlər":             (  0, -26),
+        "Banklar":               (-10,  22),
+        "Mobil operatorlar":     ( 10, -26),
+        "Elektronika":           (  0,  22),
+        "Restoranlar":           (  0,  22),
+        "Turizm":                (  0, -26),
+        "Karqo":                 (  0,  22),
+    }
+    label_bbox = dict(boxstyle="round,pad=0.3", facecolor="white",
+                      edgecolor="#D5D8DC", linewidth=0.8, alpha=0.93)
+    arrow_kw   = dict(arrowstyle="-", color="#AAAAAA", lw=0.9,
+                      shrinkA=0, shrinkB=7)
+
     for _, row in cat_agg.iterrows():
+        cat = row["category_name"]
+        if cat in LEFT_COL:
+            continue
+        dx, dy = RIGHT_OFFSETS.get(cat, (0, 22))
+        label = f"{cat}  ({int(row['total_reviews'])} rev · {row['avg_rating']:.1f}★)"
         ax.annotate(
-            row["category_name"],
+            label,
             xy=(row["total_reviews"], row["avg_rating"]),
-            xytext=(8, 0), textcoords="offset points",
-            fontsize=8.5, color=BRAND_DARK,
+            xytext=(dx, dy), textcoords="offset points",
+            fontsize=8.5, color=BRAND_DARK, fontweight="bold",
+            ha="center", va="center",
+            arrowprops=arrow_kw, bbox=label_bbox, zorder=5,
         )
 
-    ax.axhline(2.5, color=BRAND_GRAY, linestyle="--", linewidth=1, label="Rating midpoint")
-    ax.axvline(300, color=BRAND_GRAY, linestyle=":",  linewidth=1, label="High-volume threshold")
+    # ── Labels: left-column cluster (stacked, sorted by rating) ──────────
+    # Place in a vertical column at x ≈ -200 (data coords), evenly spaced
+    x_col = -200
+    n_left = len(left_order)
+    y_positions = np.linspace(y_hi - 0.08, y_lo + 0.08, n_left)
 
-    # Quadrant labels
-    ax.text(320,  4.5, "High Scrutiny\nGood Reputation",  fontsize=8, color=BRAND_GREEN, alpha=0.7)
-    ax.text(320,  1.2, "HIGH RISK\n(Volume + Bad Rating)", fontsize=8, color=BRAND_RED,   alpha=0.7,
-            fontweight="bold")
-    ax.text(10,   4.5, "Low Visibility\nGood Reputation",  fontsize=8, color=BRAND_BLUE,  alpha=0.7)
-    ax.text(10,   1.2, "Emerging Risk\n(Bad + Low Volume)", fontsize=8, color=BRAND_ORANGE,alpha=0.7)
+    for i, cat in enumerate(left_order):
+        row = cat_agg[cat_agg["category_name"] == cat].iloc[0]
+        label = f"{cat}  ({int(row['total_reviews'])} rev · {row['avg_rating']:.1f}★)"
+        ax.annotate(
+            label,
+            xy=(row["total_reviews"], row["avg_rating"]),
+            xytext=(x_col, y_positions[i]),
+            textcoords="data",
+            fontsize=8.5, color=BRAND_DARK, fontweight="bold",
+            ha="right", va="center",
+            arrowprops=dict(arrowstyle="-", color="#AAAAAA", lw=0.8,
+                            shrinkA=0, shrinkB=7),
+            bbox=label_bbox,
+            zorder=5,
+        )
 
-    plt.colorbar(scatter, ax=ax, label="Avg Rating", shrink=0.7)
-    ax.set_xlabel("Total Reviews (Bubble size = number of companies in sector)")
-    ax.set_ylabel("Average Rating (out of 5.0)")
-    ax.set_ylim(0.5, 5.5)
-    ax.set_title("Sector Risk Matrix: Volume of Feedback vs. Average Rating\n"
-                 "Bottom-right = highest business risk for brands and regulators")
-    ax.legend(fontsize=9, loc="upper left")
-    ax.grid(True, alpha=0.3)
+    # ── Colour bar ────────────────────────────────────────────────────────
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    sm.set_array([])
+    cbar = plt.colorbar(sm, ax=ax, shrink=0.60, pad=0.01)
+    cbar.set_label("Avg Rating", fontsize=10)
+    cbar.ax.tick_params(labelsize=9)
+
+    # ── Legend for threshold lines ────────────────────────────────────────
+    from matplotlib.lines import Line2D
+    handles = [
+        Line2D([0], [0], color="#95A5A6", linestyle="--", lw=1.3,
+               label=f"Rating threshold ({RATING_THRESHOLD})"),
+        Line2D([0], [0], color="#95A5A6", linestyle=":",  lw=1.3,
+               label=f"Volume threshold ({VOL_THRESHOLD} reviews)"),
+    ]
+    ax.legend(handles=handles, fontsize=9, loc="lower right",
+              framealpha=0.85, edgecolor="#D5D8DC")
+
+    ax.set_xlabel("Total Reviews Received by Sector", fontsize=11)
+    ax.set_ylabel("Average Company Rating (out of 5.0)", fontsize=11)
+    ax.set_xlim(-260, xmax)
+    ax.set_ylim(y_lo, y_hi)
+    ax.yaxis.set_major_locator(mticker.MultipleLocator(0.25))
+    ax.yaxis.set_major_formatter(mticker.FormatStrFormatter("%.2f"))
+    ax.set_title(
+        "Sector Risk Matrix — Volume of Customer Feedback vs. Average Rating\n"
+        "Bottom-right = highest urgency for brand action and regulatory oversight",
+        fontsize=13,
+    )
+    ax.grid(True, alpha=0.18, zorder=0)
+    # Hide x-tick labels in negative territory
+    ax.xaxis.set_major_formatter(
+        mticker.FuncFormatter(lambda v, _: "" if v < 0 else f"{int(v)}")
+    )
 
     save(fig, "10_sector_risk_matrix.png")
 
